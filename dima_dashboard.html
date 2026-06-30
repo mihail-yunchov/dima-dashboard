@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dima Suites — Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+// ── LOS DISTRIBUTION ─────────────────────────────────────────────────────
+const LOS_DATA = [
+  { nights:1,      count:3,  net:34.6 },
+  { nights:2,      count:96, net:73.8 },
+  { nights:3,      count:32, net:123.6 },
+  { nights:4,      count:19, net:155.4 },
+  { nights:5,      count:10, net:123.6 },
+  { nights:6,      count:2,  net:114.0 },
+  { nights:7,      count:3,  net:430.8 },
+  { nights:'8-11', count:3,  net:220.7 },
+  { nights:14,     count:3,  net:422.8 },
+];
+
+new Chart(document.getElementById('losChart'), {
+  type: 'bar',
+  data: {
+    labels: LOS_DATA.map(function(d){ return d.nights + "н"; }),
+    datasets: [{
+      label: 'Резервации',
+      data: LOS_DATA.map(function(d){ return d.count; }),
+      backgroundColor: LOS_DATA.map(d => {
+        if (d.nights === 2) return 'rgba(201,168,76,0.7)';
+        if (d.nights === 7 || d.nights === 14) return 'rgba(74,222,128,0.7)';
+        return 'rgba(96,165,250,0.4)';
+      }),
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' резерв.' } }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+      y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} }
+    }
+  }
+});
+
+new Chart(document.getElementById('losRevenueChart'), {
+  type: 'bar',
+  data: {
+    labels: LOS_DATA.map(function(d){ return d.nights + "н"; }),
+    datasets: [{
+      label: 'Avg нетно EUR',
+      data: LOS_DATA.map(function(d){ return d.net; }),
+      backgroundColor: LOS_DATA.map(d => {
+        if (d.nights === 14) return 'rgba(74,222,128,0.75)';
+        if (d.nights === 7) return 'rgba(74,222,128,0.5)';
+        if (d.nights === 2) return 'rgba(201,168,76,0.5)';
+        return 'rgba(96,165,250,0.3)';
+      }),
+      borderColor: LOS_DATA.map(d => {
+        if (d.nights === 14 || d.nights === 7) return '#4ade80';
+        if (d.nights === 2) return '#c9a84c';
+        return '#60a5fa';
+      }),
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ' ' + fmtEur(ctx.parsed.y) + ' avg нетно' } }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+      y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks: { callback: v => fmtEur(v), font:{size:11} } }
+    }
+  }
+});
+
+// ── NATIONALITY CHART ─────────────────────────────────────────────────────
+const NAT_DATA = [
+  { label: 'Балкански (BG/RO/MK)', count: 52, color: 'rgba(201,168,76,0.7)' },
+  { label: 'Международни (EU/UK)', count: 79, color: 'rgba(96,165,250,0.7)' },
+  { label: 'Гръцки', count: 5,  color: 'rgba(74,222,128,0.7)' },
+  { label: 'Руски/Украински', count: 14, color: 'rgba(167,139,250,0.7)' },
+  { label: 'Полски/Чешки', count: 17, color: 'rgba(248,113,113,0.7)' },
+];
+
+new Chart(document.getElementById('nationalityChart'), {
+  type: 'doughnut',
+  data: {
+    labels: NAT_DATA.map(function(d){ return d.label; }),
+    datasets: [{
+      data: NAT_DATA.map(function(d){ return d.count; }),
+      backgroundColor: NAT_DATA.map(function(d){ return d.color; }),
+      borderColor: '#0e1628',
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { boxWidth: 10, padding: 8, font:{size:10} }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => ' ' + ctx.label + ': ' + ctx.parsed + ' гости'
+        }
+      }
+    },
+    cutout: '60%'
+  }
+});
+
+// ── SWEET SPOT GRID ───────────────────────────────────────────────────────
+const SWEET = [
+  { nights:'2 нощи', count:96, net:73.8,  pct:56, tag:'Масово', color:'var(--gold)', note:'56% от всички резервации. Мин. 2н политика е правилна.' },
+  { nights:'3 нощи', count:31, net:112.4, pct:19, tag:'Оптимум', color:'var(--blue)', note:'+53% повече нетно от 2н при само 1 нощ повече.' },
+  { nights:'7 нощи', count:4,  net:334.0, pct:2,  tag:'Премиум', color:'var(--green)', note:'4.5× повече нетно от 2н. Номади и ски ентусиасти.' },
+  { nights:'14 нощи', count:3, net:422.8, pct:2,  tag:'Златен', color:'var(--green)', note:'Най-висок avg нетен приход. Дигитални номади — приоритет за Airbnb.' },
+];
+
+var sg = document.getElementById('sweetSpotGrid');
+SWEET.forEach(function(d) {
+  sg.innerHTML += '<div class="kpi-card" style="border-color:rgba(255,255,255,0.1)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
+    + '<div class="kpi-label">' + d.nights + '</div>'
+    + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,0.07);color:' + d.color + '">' + d.tag + '</span>'
+    + '</div>'
+    + '<div class="kpi-value" style="color:' + d.color + '">' + fmtEur(d.net) + '</div>'
+    + '<div class="kpi-sub">avg нетно · ' + d.count + ' резерв. (' + d.pct + '%)</div>'
+    + '<div style="margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5">' + d.note + '</div>'
+    + '</div>';
+});
+
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:       #080d18;
+    --surface:  #0e1628;
+    --surface2: #162038;
+    --border:   #1e3058;
+    --gold:     #c9a84c;
+    --gold2:    #e8c97a;
+    --snow:     #e8edf6;
+    --muted:    #5a6a85;
+    --sub:      #8899b8;
+    --green:    #4ade80;
+    --red:      #f87171;
+    --blue:     #60a5fa;
+    --purple:   #a78bfa;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--snow);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #0a1020, #0e1a35);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand-mountain {
+    font-size: 22px;
+    line-height: 1;
+  }
+  .brand-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--snow);
+    letter-spacing: -0.3px;
+  }
+  .brand-name span { color: var(--gold); }
+  .brand-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .data-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.25);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  .year-filter {
+    display: flex;
+    gap: 4px;
+  }
+  .year-btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .year-btn:hover { color: var(--snow); border-color: var(--sub); }
+  .year-btn.active { background: var(--gold); color: #080d18; border-color: var(--gold); }
+
+  /* ── HERO STRIP ── */
+  .hero-strip {
+    background: linear-gradient(135deg, #0a1020, #0d1830, #0a1020);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 32px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-strip::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -60px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 800;
+    color: var(--snow);
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .hero-sub {
+    font-size: 13px;
+    color: var(--sub);
+  }
+  .hero-sub b { color: var(--gold); }
+
+  /* ── MAIN LAYOUT ── */
+  .main { padding: 24px 32px; max-width: 1300px; margin: 0 auto; }
+
+  /* ── SECTION TITLES ── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── KPI GRID ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    transition: border-color 0.2s;
+  }
+  .kpi-card:hover { border-color: rgba(201,168,76,0.4); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .kpi-card.gold::before { background: var(--gold); }
+  .kpi-card.green::before { background: var(--green); }
+  .kpi-card.blue::before { background: var(--blue); }
+  .kpi-card.red::before { background: var(--red); }
+  .kpi-card.purple::before { background: var(--purple); }
+
+  .kpi-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-family: 'DM Mono', 'Courier New', monospace;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--snow);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--sub);
+    margin-top: 5px;
+  }
+  .kpi-delta {
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  .kpi-delta.up { color: var(--green); }
+  .kpi-delta.down { color: var(--red); }
+
+  /* ── CHARTS GRID ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .charts-grid.wide {
+    grid-template-columns: 1fr;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+  .chart-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--snow);
+  }
+  .chart-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .chart-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(201,168,76,0.12);
+    color: var(--gold);
+    border: 1px solid rgba(201,168,76,0.2);
+  }
+  .chart-wrap {
+    position: relative;
+    height: 220px;
+  }
+  .chart-wrap.tall { height: 280px; }
+
+  /* ── INSIGHTS TABLE ── */
+  .insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .insight-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .insight-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .insight-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .insight-text {
+    font-size: 12px;
+    color: var(--sub);
+    line-height: 1.6;
+  }
+  .insight-text b { color: var(--snow); }
+
+  /* ── ANNUAL TABLE ── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .data-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .data-table th:not(:first-child) { text-align: right; }
+  .data-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(30,48,88,0.5);
+    color: var(--snow);
+    font-family: 'DM Mono', 'Courier New', monospace;
+    font-size: 12px;
+    letter-spacing: -0.3px;
+  }
+  .data-table td:not(:first-child) { text-align: right; }
+  .data-table td:first-child { font-family: 'Inter', sans-serif; font-size: 13px; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .data-table .total-row td {
+    background: rgba(201,168,76,0.06);
+    font-weight: 700;
+    color: var(--gold);
+    border-top: 1px solid rgba(201,168,76,0.2);
+  }
+  .yoy-up { color: var(--green); font-weight: 700; }
+  .yoy-down { color: var(--red); font-weight: 700; }
+  .partial { color: var(--gold); }
+
+  /* ── MONTHLY HEATMAP ── */
+  .monthly-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .month-cell {
+    border-radius: 6px;
+    padding: 10px 4px;
+    text-align: center;
+    cursor: default;
+    transition: transform 0.1s;
+  }
+  .month-cell:hover { transform: scale(1.05); }
+  .month-name {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    opacity: 0.7;
+  }
+  .month-val {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: 'DM Mono', 'Courier New', monospace;
+    letter-spacing: -0.5px;
+  }
+  .month-sub { font-size: 9px; opacity: 0.7; margin-top: 2px; }
+
+  /* ── FOOTER ── */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 16px 32px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .header, .main, .footer { padding-left: 16px; padding-right: 16px; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .year-filter { display: none; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Loading & error states */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    z-index: 999;
+  }
+  .loading-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--sub); }
+  .error-box {
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.3);
+    border-radius: 10px;
+    padding: 20px;
+    max-width: 420px;
+    text-align: center;
+  }
+  .error-box h3 { color: var(--red); font-size: 14px; margin-bottom: 8px; }
+  .error-box p { color: var(--sub); font-size: 12px; line-height: 1.6; }
+  .retry-btn {
+    margin-top: 12px;
+    background: var(--gold); color: #080d18;
+    border: none; padding: 8px 18px; border-radius: 6px;
+    font-weight: 700; font-size: 12px; cursor: pointer;
+  }
+  .sync-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; color: var(--green);
+    background: rgba(74,222,128,0.1);
+    border: 1px solid rgba(74,222,128,0.25);
+    padding: 3px 10px; border-radius: 20px;
+  }
+  .sync-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Зареждане на данни от Google Sheets...</div>
+</div>
+
+<!-- MAIN CONTENT (hidden until loaded) -->
+<div id="mainContent" style="display:none;">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-brand">
+    <div class="brand-mountain">🏔️</div>
+    <div>
+      <div class="brand-name">Dima Suites <span>Bansko</span></div>
+      <div class="brand-sub">Performance Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="data-badge" id="dataBadge">— резервации · 2018–2026</div>
+    <div class="sync-badge" id="syncBadge"><div class="sync-dot"></div><span>Live от Google Sheets</span></div>
+    <div class="year-filter" id="yearFilter">
+      <button class="year-btn active" onclick="filterYear('all', this)">Всички</button>
+      <button class="year-btn" onclick="filterYear('2022', this)">2022</button>
+      <button class="year-btn" onclick="filterYear('2023', this)">2023</button>
+      <button class="year-btn" onclick="filterYear('2024', this)">2024</button>
+      <button class="year-btn" onclick="filterYear('2025', this)">2025</button>
+      <button class="year-btn" onclick="filterYear('2026', this)">2026</button>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero-strip">
+  <div class="hero-eyebrow">Анализ на представянето</div>
+  <div class="hero-title">8 години данни · Един поглед</div>
+  <div class="hero-sub">EUR/нощ: <b>29€ (2022)</b> → <b>55€ (2025)</b> → <b>67€ (2026 YTD)</b> · 182 резервации · Комисиона: 16.1% → 18.7%</div>
+</div>
+
+<div class="main">
+
+  <!-- KPIs -->
+  <div class="section-label">Обобщени показатели — всички години</div>
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card gold">
+      <div class="kpi-label">Общо резервации</div>
+      <div class="kpi-value" id="kpiRes">152</div>
+      <div class="kpi-sub">2018 – юни 2026</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Общо нощи</div>
+      <div class="kpi-value" id="kpiNights">478</div>
+      <div class="kpi-sub">средно 3.1 нощи/резерв.</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-label">Брутен приход</div>
+      <div class="kpi-value" id="kpiGross">19 584€</div>
+      <div class="kpi-sub" id="kpiGrossBGN">38 310 BGN</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Нетен приход</div>
+      <div class="kpi-value" id="kpiNet">16 497€</div>
+      <div class="kpi-sub">след всички комисиони</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Средна цена/нощ</div>
+      <div class="kpi-value" id="kpiAvg">40.97€</div>
+      <div class="kpi-sub">брутна, всички периоди</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Комисиони (общо)</div>
+      <div class="kpi-value" id="kpiComm">3 087€</div>
+      <div class="kpi-sub" id="kpiCommPct">~15.8% средно</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Най-силен месец</div>
+      <div class="kpi-value">Декември</div>
+      <div class="kpi-sub">65.8€/нощ средно</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Повторни гости</div>
+      <div class="kpi-value">5+</div>
+      <div class="kpi-sub">потенциал за директни</div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="section-label">Годишно представяне</div>
+  <div class="charts-grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 28px;">
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Брутен vs Нетен приход по година</div>
+          <div class="chart-sub">EUR · Комисионите изяждат ~15-19% от брутното</div>
+        </div>
+        <div class="chart-tag">2018–2026</div>
+      </div>
+      <div class="chart-wrap tall">
+        <canvas id="annualRevenueChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Средна цена/нощ</div>
+          <div class="chart-sub">EUR · Ръст 3× от 2022</div>
+        </div>
+      </div>
+      <div class="chart-wrap tall">
+        <canvas id="avgNightChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="section-label">Сезонност</div>
+  <div class="charts-grid" style="margin-bottom: 16px;">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Резервации по месец</div>
+          <div class="chart-sub">Всички години combined</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="monthlyResChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Средна цена/нощ по месец</div>
+          <div class="chart-sub">EUR · Ясно зимно premium</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="monthlyAvgChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="chart-card" style="margin-bottom: 28px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Сезонна heatmap — Нетен приход по месец</div>
+        <div class="chart-sub">По-тъмно = повече приход</div>
+      </div>
+    </div>
+    <div class="monthly-grid" id="heatmap"></div>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; font-size:10px; color:var(--muted);">
+      <span>Малко</span>
+      <div style="display:flex; gap:2px;">
+        <div style="width:14px;height:14px;border-radius:3px;background:rgba(201,168,76,0.1)"></div>
+        <div style="width:14px;height:14px;border-radius:3px;background:rgba(201,168,76,0.25)"></div>
+        <div style="width:14px;height:14px;border-radius:3px;background:rgba(201,168,76,0.45)"></div>
+        <div style="width:14px;height:14px;border-radius:3px;background:rgba(201,168,76,0.65)"></div>
+        <div style="width:14px;height:14px;border-radius:3px;background:rgba(201,168,76,0.85)"></div>
+      </div>
+      <span>Много</span>
+    </div>
+  </div>
+
+  <!-- ANNUAL TABLE -->
+  <div class="section-label">Детайлна таблица по година</div>
+  <div class="table-wrap" style="margin-bottom: 28px;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Година</th>
+          <th>Резерв.</th>
+          <th>Нощи</th>
+          <th>Брутен EUR</th>
+          <th>Нетен EUR</th>
+          <th>EUR/Нощ</th>
+          <th>Комисиона</th>
+          <th>YoY Ръст</th>
+        </tr>
+      </thead>
+      <tbody id="annualTableBody"></tbody>
+    </table>
+  </div>
+
+
+  <!-- CHARTS ROW 3 — LOS & NATIONALITY -->
+  <div class="section-label">Поведение на гостите</div>
+  <div class="charts-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 28px;">
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Дължина на престой</div>
+          <div class="chart-sub">Разпределение на резервациите</div>
+        </div>
+        <div class="chart-tag">167 резерв.</div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="losChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Нетен приход по престой</div>
+          <div class="chart-sub">Средно EUR нетно на резервация</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="losRevenueChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Произход на гостите</div>
+          <div class="chart-sub">По азбука на имената (приближение)</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="nationalityChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SWEET SPOT CARD -->
+  <div class="section-label">Sweet spot анализ</div>
+  <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px; margin-bottom:28px;" id="sweetSpotGrid"></div>
+
+  <!-- INSIGHTS -->
+  <div class="section-label">Ключови инсайти</div>
+  <div class="insights-grid">
+    <div class="insight-card">
+      <div class="insight-icon">📈</div>
+      <div>
+        <div class="insight-title">Силен ръст</div>
+        <div class="insight-text">Резервациите растат от <b>4 (2018)</b> до <b>43 (2023)</b>. 2025 е 24 резерв., 2026 вече 21 резервации (яну–авг) — на пат за нов рекорд.</div>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">❄️</div>
+      <div>
+        <div class="insight-title">Зимата = premium</div>
+        <div class="insight-text">Януари и Декември — <b>62–66€/нощ</b> средно. Най-добрите приходи/нощ за цялата година.</div>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">☀️</div>
+      <div>
+        <div class="insight-title">Лятото = обем</div>
+        <div class="insight-text">Август е <b>най-натовареният месец</b> (38 резерв. all-time), но при по-ниски цени (~30€/нощ исторически).</div>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">🚀</div>
+      <div>
+        <div class="insight-title">Rate surge 2024–26</div>
+        <div class="insight-text">EUR/нощ: <b>29€ (2022)</b> → <b>42€ (2024)</b> → <b>55€ (2025)</b> → <b>74€ (2026 YTD)</b>. 2.5× за 4 години.</div>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">💸</div>
+      <div>
+        <div class="insight-title">Комисиона нараства</div>
+        <div class="insight-text">Booking.com комисиона: <b>16.3%</b> (2021–2024) → <b>16.7%</b> (2025) → <b>19.2%</b> (2026). Ясен възходящ тренд.</div>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">📉</div>
+      <div>
+        <div class="insight-title">Пролетен gap</div>
+        <div class="insight-text">Май: само <b>1 резервация</b> за 8 години. Март (3) и Ноември (3) също много слаби. Airbnb и digital nomads могат да запълнят тази ниша.</div>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">🔁</div>
+      <div>
+        <div class="insight-title">Повторни гости</div>
+        <div class="insight-text">Минимум <b>5 потвърдени повторни госта</b>. Директни резервации = спестяване на ~18% комисиона.</div>
+      </div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-icon">🎯</div>
+      <div>
+        <div class="insight-title">Airbnb потенциал</div>
+        <div class="insight-text">Airbnb комисиона е само <b>~3%</b> vs 17.7% Booking. При 100 нощи разликата е <b>~1 500€ нетно повече</b>.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>🏔️ Dima Suites Bansko · Performance Dashboard</span>
+  <span>Данни: Booking.com · 152 резервации · 2018 – юни 2026 · 1 EUR = 1.95583 BGN</span>
+</div>
+
+</div><!-- end mainContent -->
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw4yn6Q3WVczIvq1Mg1lBfLsE9qBFYJOdX2lAIrJ9JW-fVN1OKK8HFnORubjJmLlz8a/exec';
+
+// ── CHART.JS DEFAULTS ────────────────────────────────────────────────────
+Chart.defaults.color = '#8899b8';
+Chart.defaults.borderColor = '#1e3058';
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+
+function fmt(n) {
+  return new Intl.NumberFormat('bg-BG', {minimumFractionDigits:0, maximumFractionDigits:0}).format(n);
+}
+function fmtEur(n) { return fmt(n) + '€'; }
+function fmtPct(n) { return n.toFixed(1) + '%'; }
+
+// ── GLOBAL STATE ─────────────────────────────────────────────────────────
+let ANNUAL = [];
+let MONTHLY = [];
+let LOS_DATA = [];
+let TOTALS = {};
+let charts = {};
+
+// ── FETCH & INIT ─────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=getDashboardData');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Unknown error from Apps Script');
+
+    ANNUAL = json.data.annual;
+    MONTHLY = json.data.monthly;
+    LOS_DATA = json.data.los;
+    TOTALS = json.data.totals;
+
+    renderDashboard();
+
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+  } catch (err) {
+    showError(err.message || String(err));
+  }
+}
+
+function showError(msg) {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.innerHTML = `
+    <div class="error-box">
+      <h3>⚠️ Неуспешно зареждане на данни</h3>
+      <p>${msg}</p>
+      <p style="margin-top:8px">Провери дали Google Sheets файлът е достъпен и Apps Script е публикуван правилно.</p>
+      <button class="retry-btn" onclick="location.reload()">Опитай отново</button>
+    </div>
+  `;
+}
+
+// ── MAIN RENDER ──────────────────────────────────────────────────────────
+function renderDashboard() {
+  renderKPIs();
+  renderAnnualChart();
+  renderAvgNightChart();
+  renderMonthlyResChart();
+  renderMonthlyAvgChart();
+  renderHeatmap();
+  renderAnnualTable();
+  renderLOSCharts();
+  renderSweetSpot();
+
+  document.getElementById('dataBadge').textContent = TOTALS.res + ' резервации · 2018–2026';
+
+  // Setup year filter buttons dynamically based on available years
+  setupYearFilter();
+}
+
+// ── KPIs ─────────────────────────────────────────────────────────────────
+function renderKPIs() {
+  filterYear('all', document.querySelector('.year-btn'));
+}
+
+function setupYearFilter() {
+  const container = document.getElementById('yearFilter');
+  const years = ANNUAL.map(d => d.year.replace('*',''));
+  let html = '<button class="year-btn active" onclick="filterYear(' + String.fromCharCode(39) + 'all' + String.fromCharCode(39) + ', this)">Всички</button>';
+  years.forEach(function(y) {
+    if (Number(y) >= 2022) {
+      html += '<button class="year-btn" onclick="filterYear(' + String.fromCharCode(39) + y + String.fromCharCode(39) + ', this)">' + y + '</button>';
+    }
+  });
+  container.innerHTML = html;
+}
+
+function filterYear(year, btn) {
+  document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  let d;
+  if (year === 'all') {
+    d = TOTALS;
+  } else {
+    const found = ANNUAL.find(a => a.year.replace('*','') === year);
+    if (!found) return;
+    d = { res: found.res, nights: found.nights, gross: found.gross, net: found.net };
+  }
+
+  document.getElementById('kpiRes').textContent = d.res;
+  document.getElementById('kpiNights').textContent = d.nights;
+  document.getElementById('kpiGross').textContent = fmtEur(Math.round(d.gross));
+  document.getElementById('kpiNet').textContent = fmtEur(Math.round(d.net));
+  const avg = d.nights > 0 ? d.gross / d.nights : 0;
+  document.getElementById('kpiAvg').textContent = fmtEur(avg.toFixed(2));
+  const comm = d.gross - d.net;
+  document.getElementById('kpiComm').textContent = fmtEur(Math.round(comm));
+  const commPct = d.gross > 0 ? (comm / d.gross * 100) : 0;
+  document.getElementById('kpiCommPct').textContent = '~' + commPct.toFixed(1) + '% средно';
+}
+
+// ── ANNUAL REVENUE CHART ─────────────────────────────────────────────────
+function renderAnnualChart() {
+  if (charts.annual) charts.annual.destroy();
+  charts.annual = new Chart(document.getElementById('annualRevenueChart'), {
+    type: 'bar',
+    data: {
+      labels: ANNUAL.map(d => d.year),
+      datasets: [
+        {
+          label: 'Брутен EUR',
+          data: ANNUAL.map(d => d.gross),
+          backgroundColor: 'rgba(201,168,76,0.25)',
+          borderColor: '#c9a84c',
+          borderWidth: 1.5,
+          borderRadius: 4,
+        },
+        {
+          label: 'Нетен EUR',
+          data: ANNUAL.map(d => d.net),
+          backgroundColor: 'rgba(74,222,128,0.2)',
+          borderColor: '#4ade80',
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 10, padding: 14, font: {size:11} } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + fmtEur(ctx.parsed.y) } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.5)' }, ticks: {font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.5)' }, ticks: { callback: v => fmtEur(v), font:{size:11} } }
+      }
+    }
+  });
+}
+
+// ── AVG NIGHT CHART ──────────────────────────────────────────────────────
+function renderAvgNightChart() {
+  if (charts.avgNight) charts.avgNight.destroy();
+  charts.avgNight = new Chart(document.getElementById('avgNightChart'), {
+    type: 'line',
+    data: {
+      labels: ANNUAL.map(d => d.year),
+      datasets: [{
+        label: 'EUR/нощ',
+        data: ANNUAL.map(d => d.eur_n),
+        borderColor: '#c9a84c',
+        backgroundColor: 'rgba(201,168,76,0.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#c9a84c',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.35,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + fmtEur(ctx.parsed.y) + '/нощ' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.5)' }, ticks: {font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.5)' }, ticks: { callback: v => fmtEur(v), font:{size:11} } }
+      }
+    }
+  });
+}
+
+// ── MONTHLY RES CHART ────────────────────────────────────────────────────
+function renderMonthlyResChart() {
+  const monthColors = MONTHLY.map(d => {
+    if (d.season === 'ski') return 'rgba(96,165,250,0.7)';
+    if (d.season === 'sum') return 'rgba(201,168,76,0.7)';
+    if (d.season === 'gap') return 'rgba(248,113,113,0.7)';
+    return 'rgba(148,163,184,0.4)';
+  });
+
+  if (charts.monthlyRes) charts.monthlyRes.destroy();
+  charts.monthlyRes = new Chart(document.getElementById('monthlyResChart'), {
+    type: 'bar',
+    data: {
+      labels: MONTHLY.map(d => d.m),
+      datasets: [{
+        label: 'Резервации',
+        data: MONTHLY.map(d => d.res),
+        backgroundColor: monthColors,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' резерв.' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} }
+      }
+    }
+  });
+}
+
+// ── MONTHLY AVG (RADAR) CHART ────────────────────────────────────────────
+function renderMonthlyAvgChart() {
+  const monthColors = MONTHLY.map(d => {
+    if (d.season === 'ski') return 'rgba(96,165,250,0.7)';
+    if (d.season === 'sum') return 'rgba(201,168,76,0.7)';
+    if (d.season === 'gap') return 'rgba(248,113,113,0.7)';
+    return 'rgba(148,163,184,0.4)';
+  });
+
+  if (charts.monthlyAvg) charts.monthlyAvg.destroy();
+  charts.monthlyAvg = new Chart(document.getElementById('monthlyAvgChart'), {
+    type: 'radar',
+    data: {
+      labels: MONTHLY.map(d => d.m),
+      datasets: [{
+        label: 'EUR/нощ',
+        data: MONTHLY.map(d => d.eur_n),
+        borderColor: '#c9a84c',
+        backgroundColor: 'rgba(201,168,76,0.08)',
+        borderWidth: 2,
+        pointBackgroundColor: monthColors,
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + fmtEur(ctx.parsed.r) + '/нощ' } }
+      },
+      scales: {
+        r: {
+          grid: { color: 'rgba(30,48,88,0.6)' },
+          ticks: { color: '#5a6a85', font:{size:10}, backdropColor: 'transparent' },
+          pointLabels: { color: '#8899b8', font:{size:10} }
+        }
+      }
+    }
+  });
+}
+
+// ── HEATMAP ───────────────────────────────────────────────────────────────
+function renderHeatmap() {
+  const maxNet = Math.max(...MONTHLY.map(d => d.net));
+  const heatmap = document.getElementById('heatmap');
+  heatmap.innerHTML = '';
+  MONTHLY.forEach(d => {
+    const intensity = maxNet > 0 ? d.net / maxNet : 0;
+    const cell = document.createElement('div');
+    cell.className = 'month-cell';
+    const bgOpacity = (0.07 + intensity * 0.78).toFixed(2);
+    const borderOpacity = (0.1 + intensity * 0.3).toFixed(2);
+    cell.style.background = 'rgba(201,168,76,' + bgOpacity + ')';
+    cell.style.border = '1px solid rgba(201,168,76,' + borderOpacity + ')';
+    cell.title = d.m + ': ' + fmtEur(d.net) + ' нетно';
+    const nameColor = intensity > 0.5 ? '#1A2744' : '#8899b8';
+    const valColor  = intensity > 0.5 ? '#1A2744' : '#e8edf6';
+    const subColor  = intensity > 0.5 ? '#2C3E6A' : '#5a6a85';
+    cell.innerHTML = '<div class="month-name" style="color:' + nameColor + '">' + d.m + '</div>'
+      + '<div class="month-val" style="color:' + valColor + '">' + fmtEur(Math.round(d.net)) + '</div>'
+      + '<div class="month-sub" style="color:' + subColor + '">' + d.res + ' рез.</div>';
+    heatmap.appendChild(cell);
+  });
+}
+
+// ── ANNUAL TABLE ──────────────────────────────────────────────────────────
+function renderAnnualTable() {
+  const tbody = document.getElementById('annualTableBody');
+  tbody.innerHTML = '';
+  let totalRes=0, totalNights=0, totalGross=0, totalNet=0;
+
+  ANNUAL.forEach((d, i) => {
+    totalRes += d.res; totalNights += d.nights;
+    totalGross += d.gross; totalNet += d.net;
+
+    let yoy = '—';
+    if (i > 0) {
+      const prevGross = ANNUAL[i-1].gross;
+      if (prevGross > 0) {
+        const pct = ((d.gross - prevGross) / prevGross) * 100;
+        const cls = pct >= 0 ? 'yoy-up' : 'yoy-down';
+        yoy = '<span class="' + cls + '">' + (pct >= 0 ? '+' : '') + pct.toFixed(0) + '%</span>';
+      }
+    }
+
+    const yr = d.partial ? '<span class="partial">' + d.year + '</span>' : d.year;
+    tbody.innerHTML += '<tr>'
+      + '<td><b>' + yr + '</b></td>'
+      + '<td>' + d.res + '</td>'
+      + '<td>' + d.nights + '</td>'
+      + '<td>' + fmtEur(d.gross) + '</td>'
+      + '<td>' + fmtEur(d.net) + '</td>'
+      + '<td>' + fmtEur(d.eur_n) + '</td>'
+      + '<td>' + (d.pct > 0 ? fmtPct(d.pct*100) : '—') + '</td>'
+      + '<td>' + yoy + '</td>'
+      + '</tr>';
+  });
+
+  const avgComm = totalGross > 0 ? (totalGross - totalNet) / totalGross * 100 : 0;
+  tbody.innerHTML += '<tr class="total-row">'
+    + '<td>ОБЩО</td>'
+    + '<td>' + totalRes + '</td>'
+    + '<td>' + totalNights + '</td>'
+    + '<td>' + fmtEur(Math.round(totalGross)) + '</td>'
+    + '<td>' + fmtEur(Math.round(totalNet)) + '</td>'
+    + '<td>' + fmtEur(Math.round(totalGross/totalNights)) + '</td>'
+    + '<td>' + fmtPct(avgComm) + '</td>'
+    + '<td>—</td>'
+    + '</tr>';
+}
+
+// ── LOS CHARTS ────────────────────────────────────────────────────────────
+function renderLOSCharts() {
+  const dominant = LOS_DATA.reduce((max, d) => d.count > max.count ? d : max, LOS_DATA[0] || {count:0});
+  const topNet = [...LOS_DATA].sort((a,b) => b.net - a.net).slice(0,2).map(d => d.nights);
+
+  if (charts.los) charts.los.destroy();
+  charts.los = new Chart(document.getElementById('losChart'), {
+    type: 'bar',
+    data: {
+      labels: LOS_DATA.map(d => d.nights + 'н'),
+      datasets: [{
+        label: 'Резервации',
+        data: LOS_DATA.map(d => d.count),
+        backgroundColor: LOS_DATA.map(d => {
+          if (d.nights === dominant.nights) return 'rgba(201,168,76,0.7)';
+          if (topNet.includes(d.nights)) return 'rgba(74,222,128,0.7)';
+          return 'rgba(96,165,250,0.4)';
+        }),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' резерв.' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} }
+      }
+    }
+  });
+
+  if (charts.losRevenue) charts.losRevenue.destroy();
+  charts.losRevenue = new Chart(document.getElementById('losRevenueChart'), {
+    type: 'bar',
+    data: {
+      labels: LOS_DATA.map(d => d.nights + 'н'),
+      datasets: [{
+        label: 'Avg нетно EUR',
+        data: LOS_DATA.map(d => d.net),
+        backgroundColor: LOS_DATA.map(d => {
+          if (topNet.includes(d.nights)) return 'rgba(74,222,128,0.6)';
+          if (d.nights === dominant.nights) return 'rgba(201,168,76,0.5)';
+          return 'rgba(96,165,250,0.3)';
+        }),
+        borderColor: LOS_DATA.map(d => {
+          if (topNet.includes(d.nights)) return '#4ade80';
+          if (d.nights === dominant.nights) return '#c9a84c';
+          return '#60a5fa';
+        }),
+        borderWidth: 1.5,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + fmtEur(ctx.parsed.y) + ' avg нетно' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks: { callback: v => fmtEur(v), font:{size:11} } }
+      }
+    }
+  });
+
+  // Nationality stays illustrative (names-based approximation note shown in chart subtitle)
+  if (charts.nationality) charts.nationality.destroy();
+  const natCanvas = document.getElementById('nationalityChart');
+  if (natCanvas) {
+    charts.nationality = new Chart(natCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Балкански (BG/RO/MK)', 'Международни (EU/UK)', 'Гръцки', 'Руски/Украински', 'Полски/Чешки'],
+        datasets: [{
+          data: [52, 79, 5, 14, 17],
+          backgroundColor: ['rgba(201,168,76,0.7)','rgba(96,165,250,0.7)','rgba(74,222,128,0.7)','rgba(167,139,250,0.7)','rgba(248,113,113,0.7)'],
+          borderColor: '#0e1628',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font:{size:10} } },
+          tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed + ' гости' } }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+}
+
+// ── SWEET SPOT GRID ───────────────────────────────────────────────────────
+function renderSweetSpot() {
+  const sg = document.getElementById('sweetSpotGrid');
+  if (!sg) return;
+  sg.innerHTML = '';
+
+  const totalRes = LOS_DATA.reduce((s,d) => s + d.count, 0);
+  const sorted = [...LOS_DATA].sort((a,b) => a.nights - b.nights);
+  const dominant = sorted.reduce((max, d) => d.count > max.count ? d : max, sorted[0] || {count:0});
+  const topByNet = [...LOS_DATA].sort((a,b) => b.net - a.net).slice(0,3);
+
+  const cards = [];
+  if (dominant.count) {
+    cards.push({
+      nights: dominant.nights + ' нощи', count: dominant.count, net: dominant.net,
+      pct: Math.round(dominant.count/totalRes*100), tag: 'Масово', color: 'var(--gold)',
+      note: Math.round(dominant.count/totalRes*100) + '% от всички резервации.'
+    });
+  }
+  topByNet.forEach(d => {
+    if (d.nights === dominant.nights) return;
+    cards.push({
+      nights: d.nights + ' нощи', count: d.count, net: d.net,
+      pct: Math.round(d.count/totalRes*100), tag: 'Премиум', color: 'var(--green)',
+      note: (d.net / (dominant.net||1)).toFixed(1) + '× повече нетно от ' + dominant.nights + 'н.'
+    });
+  });
+
+  cards.slice(0,4).forEach(d => {
+    sg.innerHTML += '<div class="kpi-card" style="border-color:rgba(255,255,255,0.1)">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
+      + '<div class="kpi-label">' + d.nights + '</div>'
+      + '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,0.07);color:' + d.color + '">' + d.tag + '</span>'
+      + '</div>'
+      + '<div class="kpi-value" style="color:' + d.color + '">' + fmtEur(d.net) + '</div>'
+      + '<div class="kpi-sub">avg нетно · ' + d.count + ' резерв. (' + d.pct + '%)</div>'
+      + '<div style="margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5">' + d.note + '</div>'
+      + '</div>';
+  });
+}
+
+// ── INIT ON LOAD ─────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+
+
+</body>
+</html>
