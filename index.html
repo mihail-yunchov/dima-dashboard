@@ -497,28 +497,28 @@
   <div class="kpi-grid" id="kpiGrid">
     <div class="kpi-card gold">
       <div class="kpi-label">Общо резервации</div>
-      <div class="kpi-value" id="kpiRes">152</div>
-      <div class="kpi-sub">2018 – юни 2026</div>
+      <div class="kpi-value" id="kpiRes">—</div>
+      <div class="kpi-sub" id="kpiResSub">—</div>
     </div>
     <div class="kpi-card green">
       <div class="kpi-label">Общо нощи</div>
-      <div class="kpi-value" id="kpiNights">478</div>
-      <div class="kpi-sub">средно 3.1 нощи/резерв.</div>
+      <div class="kpi-value" id="kpiNights">—</div>
+      <div class="kpi-sub" id="kpiNightsSub">—</div>
     </div>
     <div class="kpi-card gold">
       <div class="kpi-label">Брутен приход</div>
-      <div class="kpi-value" id="kpiGross">19 584€</div>
-      <div class="kpi-sub" id="kpiGrossBGN">38 310 BGN</div>
+      <div class="kpi-value" id="kpiGross">—</div>
+      <div class="kpi-sub" id="kpiGrossBGN">—</div>
     </div>
     <div class="kpi-card green">
       <div class="kpi-label">Нетен приход</div>
-      <div class="kpi-value" id="kpiNet">16 497€</div>
+      <div class="kpi-value" id="kpiNet">—</div>
       <div class="kpi-sub">след всички комисиони</div>
     </div>
     <div class="kpi-card blue">
       <div class="kpi-label">Средна цена/нощ</div>
-      <div class="kpi-value" id="kpiAvg">40.97€</div>
-      <div class="kpi-sub">брутна, всички периоди</div>
+      <div class="kpi-value" id="kpiAvg">—</div>
+      <div class="kpi-sub">брутна, за избрания период</div>
     </div>
     <div class="kpi-card purple">
       <div class="kpi-label">Комисиони (общо)</div>
@@ -643,7 +643,7 @@
           <div class="chart-title">Дължина на престой</div>
           <div class="chart-sub">Разпределение на резервациите</div>
         </div>
-        <div class="chart-tag">167 резерв.</div>
+        <div class="chart-tag" id="losTag">— резерв.</div>
       </div>
       <div class="chart-wrap">
         <canvas id="losChart"></canvas>
@@ -698,24 +698,19 @@
   <div class="section-label">ЕСТИ регистрация</div>
   <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap:12px; margin-bottom:28px;">
     <div class="kpi-card green">
-      <div class="kpi-label">Подадени форми</div>
-      <div class="kpi-value">66</div>
-      <div class="kpi-sub">2022 – авг 2026</div>
-    </div>
-    <div class="kpi-card gold">
-      <div class="kpi-label">Свързани с резервации</div>
-      <div class="kpi-value">62</div>
-      <div class="kpi-sub">94% успешно съпоставени</div>
+      <div class="kpi-label">Резерв. с попълнена ЕСТИ</div>
+      <div class="kpi-value" id="kpiEstiYes">—</div>
+      <div class="kpi-sub" id="kpiEstiYesSub">—</div>
     </div>
     <div class="kpi-card blue">
-      <div class="kpi-label">Resv. без ЕСТИ</div>
-      <div class="kpi-value">145</div>
-      <div class="kpi-sub">от 207 общо (стари + пропуснати)</div>
+      <div class="kpi-label">Резерв. без ЕСТИ</div>
+      <div class="kpi-value" id="kpiEstiNo">—</div>
+      <div class="kpi-sub" id="kpiEstiNoSub">—</div>
     </div>
-    <div class="kpi-card purple">
-      <div class="kpi-label">Тренд юли 2026</div>
-      <div class="kpi-value">7</div>
-      <div class="kpi-sub">форми — най-силен месец</div>
+    <div class="kpi-card gold">
+      <div class="kpi-label">% Compliance</div>
+      <div class="kpi-value" id="kpiEstiPct">—</div>
+      <div class="kpi-sub">от резервации с попълнено поле</div>
     </div>
   </div>
 
@@ -728,7 +723,7 @@
 
 <div class="footer">
   <span>🏔️ Dima Suites Bansko · Performance Dashboard</span>
-  <span>Данни: Booking.com · 152 резервации · 2018 – юни 2026 · 1 EUR = 1.95583 BGN</span>
+  <span id="footerStats">Данни: Booking.com · зареждане... · 1 EUR = 1.95583 BGN</span>
 </div>
 
 </div><!-- end mainContent -->
@@ -835,6 +830,7 @@ let MONTHLY = [];
 let LOS_DATA = [];
 let BY_ROOM = [];
 let TOTALS = {};
+let RESERVATIONS = [];
 let charts = {};
 
 // ── FETCH & INIT ─────────────────────────────────────────────────────────
@@ -853,6 +849,7 @@ async function loadDashboard() {
     LOS_DATA = json.data.los;
     BY_ROOM = json.data.byRoom || [];
     TOTALS = json.data.totals;
+    RESERVATIONS = json.data.reservations || [];
 
     renderDashboard();
 
@@ -886,13 +883,52 @@ function renderDashboard() {
   renderHeatmap();
   renderAnnualTable();
   renderLOSCharts();
+  renderLOSTag();
   renderRoomCharts();
   renderSweetSpot();
+  renderEsti();
+  renderFooter();
 
-  document.getElementById('dataBadge').textContent = TOTALS.res + ' резервации · 2018–2026';
+  const years = ANNUAL.map(a => a.year.replace('*',''));
+  const yearRange = years.length > 0 ? (years[0] + '–' + years[years.length-1]) : '';
+  document.getElementById('dataBadge').textContent = TOTALS.res + ' резервации · ' + yearRange;
 
   // Setup year filter buttons dynamically based on available years
   setupYearFilter();
+}
+
+function renderLOSTag() {
+  const el = document.getElementById('losTag');
+  if (el) el.textContent = TOTALS.res + ' резерв.';
+}
+
+function renderEsti() {
+  if (!RESERVATIONS || RESERVATIONS.length === 0) return;
+  const withEsti = RESERVATIONS.filter(r => r.esti === 'Да' || r.esti === 'Не');
+  const yesCount = RESERVATIONS.filter(r => r.esti === 'Да').length;
+  const noCount = RESERVATIONS.filter(r => r.esti === 'Не').length;
+  const totalMarked = withEsti.length;
+  const pct = totalMarked > 0 ? (yesCount / totalMarked * 100) : 0;
+
+  const elYes = document.getElementById('kpiEstiYes');
+  const elYesSub = document.getElementById('kpiEstiYesSub');
+  const elNo = document.getElementById('kpiEstiNo');
+  const elNoSub = document.getElementById('kpiEstiNoSub');
+  const elPct = document.getElementById('kpiEstiPct');
+
+  if (elYes) elYes.textContent = yesCount;
+  if (elYesSub) elYesSub.textContent = 'от ' + RESERVATIONS.length + ' общо резервации';
+  if (elNo) elNo.textContent = noCount;
+  if (elNoSub) elNoSub.textContent = (RESERVATIONS.length - totalMarked) + ' с непопълнено поле';
+  if (elPct) elPct.textContent = pct.toFixed(0) + '%';
+}
+
+function renderFooter() {
+  const el = document.getElementById('footerStats');
+  if (!el) return;
+  const years = ANNUAL.map(a => a.year.replace('*',''));
+  const yearRange = years.length > 0 ? (years[0] + ' – ' + years[years.length-1]) : '';
+  el.textContent = 'Данни: Booking.com · ' + TOTALS.res + ' резервации · ' + yearRange + ' · 1 EUR = 1.95583 BGN';
 }
 
 // ── KPIs ─────────────────────────────────────────────────────────────────
@@ -957,17 +993,25 @@ function filterYear(year, btn) {
   if (btn) btn.classList.add('active');
 
   let d;
+  let periodLabel;
   if (year === 'all') {
     d = TOTALS;
+    const years = ANNUAL.map(a => a.year.replace('*',''));
+    periodLabel = years.length > 0 ? (years[0] + ' – ' + years[years.length-1]) : 'всички години';
   } else {
     const found = ANNUAL.find(a => a.year.replace('*','') === year);
     if (!found) return;
     d = { res: found.res, nights: found.nights, gross: found.gross, net: found.net };
+    periodLabel = year;
   }
 
   document.getElementById('kpiRes').textContent = d.res;
+  document.getElementById('kpiResSub').textContent = periodLabel;
   document.getElementById('kpiNights').textContent = d.nights;
+  const avgStay = d.res > 0 ? (d.nights / d.res).toFixed(1) : '0';
+  document.getElementById('kpiNightsSub').textContent = 'средно ' + avgStay + ' нощи/резерв.';
   document.getElementById('kpiGross').textContent = fmtEur(Math.round(d.gross));
+  document.getElementById('kpiGrossBGN').textContent = fmt(Math.round(d.gross * 1.95583)) + ' BGN';
   document.getElementById('kpiNet').textContent = fmtEur(Math.round(d.net));
   const avg = d.nights > 0 ? d.gross / d.nights : 0;
   document.getElementById('kpiAvg').textContent = fmtEur(avg.toFixed(2));
