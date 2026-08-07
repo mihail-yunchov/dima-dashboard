@@ -4,164 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dima Suites — Performance Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
-// ── LOS DISTRIBUTION ─────────────────────────────────────────────────────
-const LOS_DATA = [
-  { nights:1,      count:3,  net:34.6 },
-  { nights:2,      count:96, net:73.8 },
-  { nights:3,      count:32, net:123.6 },
-  { nights:4,      count:19, net:155.4 },
-  { nights:5,      count:10, net:123.6 },
-  { nights:6,      count:2,  net:114.0 },
-  { nights:7,      count:3,  net:430.8 },
-  { nights:'8-11', count:3,  net:220.7 },
-  { nights:14,     count:3,  net:422.8 },
-];
-
-new Chart(document.getElementById('losChart'), {
-  type: 'bar',
-  data: {
-    labels: LOS_DATA.map(function(d){ return d.nights + "н"; }),
-    datasets: [{
-      label: 'Резервации',
-      data: LOS_DATA.map(function(d){ return d.count; }),
-      backgroundColor: LOS_DATA.map(d => {
-        if (d.nights === 2) return 'rgba(201,168,76,0.7)';
-        if (d.nights === 7 || d.nights === 14) return 'rgba(74,222,128,0.7)';
-        return 'rgba(96,165,250,0.4)';
-      }),
-      borderRadius: 4,
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' резерв.' } }
-    },
-    scales: {
-      x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
-      y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} }
-    }
-  }
-});
-
-new Chart(document.getElementById('losRevenueChart'), {
-  type: 'bar',
-  data: {
-    labels: LOS_DATA.map(function(d){ return d.nights + "н"; }),
-    datasets: [{
-      label: 'Avg нетно EUR',
-      data: LOS_DATA.map(function(d){ return d.net; }),
-      backgroundColor: LOS_DATA.map(d => {
-        if (d.nights === 14) return 'rgba(74,222,128,0.75)';
-        if (d.nights === 7) return 'rgba(74,222,128,0.5)';
-        if (d.nights === 2) return 'rgba(201,168,76,0.5)';
-        return 'rgba(96,165,250,0.3)';
-      }),
-      borderColor: LOS_DATA.map(d => {
-        if (d.nights === 14 || d.nights === 7) return '#4ade80';
-        if (d.nights === 2) return '#c9a84c';
-        return '#60a5fa';
-      }),
-      borderWidth: 1.5,
-      borderRadius: 4,
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: ctx => ' ' + fmtEur(ctx.parsed.y) + ' avg нетно' } }
-    },
-    scales: {
-      x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
-      y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks: { callback: v => fmtEur(v), font:{size:11} } }
-    }
-  }
-});
-
-// ── ROOM CHARTS ────────────────────────────────────────────────────────
-function renderRoomCharts() {
-  const roomCanvas1 = document.getElementById('roomResChart');
-  const roomCanvas2 = document.getElementById('roomNetChart');
-  if (!roomCanvas1 || !roomCanvas2) return;
-
-  const roomOrder = ['Ап1', 'Ап2', 'Кух1', 'Кух2'];
-  const roomColors = {
-    'Ап1': 'rgba(96,165,250,0.7)',
-    'Ап2': 'rgba(96,165,250,0.45)',
-    'Кух1': 'rgba(201,168,76,0.7)',
-    'Кух2': 'rgba(201,168,76,0.45)'
-  };
-
-  const known = BY_ROOM.filter(d => roomOrder.includes(d.room));
-  const unknown = BY_ROOM.filter(d => !roomOrder.includes(d.room));
-  const sorted = roomOrder
-    .map(r => known.find(d => d.room === r))
-    .filter(Boolean)
-    .concat(unknown);
-
-  if (sorted.length === 0) {
-    [roomCanvas1, roomCanvas2].forEach(c => {
-      const ctx = c.getContext('2d');
-      ctx.clearRect(0, 0, c.width, c.height);
-    });
-    return;
-  }
-
-  if (charts.roomRes) charts.roomRes.destroy();
-  charts.roomRes = new Chart(roomCanvas1, {
-    type: 'bar',
-    data: {
-      labels: sorted.map(d => d.room),
-      datasets: [{
-        label: 'Резервации',
-        data: sorted.map(d => d.res),
-        backgroundColor: sorted.map(d => roomColors[d.room] || 'rgba(148,163,184,0.5)'),
-        borderRadius: 4,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' резерв. · ' + sorted[ctx.dataIndex].nights + ' нощи' } }
-      },
-      scales: {
-        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
-        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} }
-      }
-    }
-  });
-
-  if (charts.roomNet) charts.roomNet.destroy();
-  charts.roomNet = new Chart(roomCanvas2, {
-    type: 'bar',
-    data: {
-      labels: sorted.map(d => d.room),
-      datasets: [{
-        label: 'Нетен приход EUR',
-        data: sorted.map(d => d.net),
-        backgroundColor: sorted.map(d => roomColors[d.room] || 'rgba(148,163,184,0.5)'),
-        borderRadius: 4,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ' ' + fmtEur(ctx.parsed.y) + ' нетно' } }
-      },
-      scales: {
-        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
-        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks: { callback: v => fmtEur(v), font:{size:11} } }
-      }
-    }
-  });
-}
-
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -896,6 +739,86 @@ function renderRoomCharts() {
 </div><!-- end mainContent -->
 
 <script>
+// ── ROOM CHARTS ────────────────────────────────────────────────────────
+function renderRoomCharts() {
+  const roomCanvas1 = document.getElementById('roomResChart');
+  const roomCanvas2 = document.getElementById('roomNetChart');
+  if (!roomCanvas1 || !roomCanvas2) return;
+
+  const roomOrder = ['Ап1', 'Ап2', 'Кух1', 'Кух2'];
+  const roomColors = {
+    'Ап1': 'rgba(96,165,250,0.7)',
+    'Ап2': 'rgba(96,165,250,0.45)',
+    'Кух1': 'rgba(201,168,76,0.7)',
+    'Кух2': 'rgba(201,168,76,0.45)'
+  };
+
+  const known = BY_ROOM.filter(d => roomOrder.includes(d.room));
+  const unknown = BY_ROOM.filter(d => !roomOrder.includes(d.room));
+  const sorted = roomOrder
+    .map(r => known.find(d => d.room === r))
+    .filter(Boolean)
+    .concat(unknown);
+
+  if (sorted.length === 0) {
+    [roomCanvas1, roomCanvas2].forEach(c => {
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, c.width, c.height);
+    });
+    return;
+  }
+
+  if (charts.roomRes) charts.roomRes.destroy();
+  charts.roomRes = new Chart(roomCanvas1, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(d => d.room),
+      datasets: [{
+        label: 'Резервации',
+        data: sorted.map(d => d.res),
+        backgroundColor: sorted.map(d => roomColors[d.room] || 'rgba(148,163,184,0.5)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.y + ' резерв. · ' + sorted[ctx.dataIndex].nights + ' нощи' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} }
+      }
+    }
+  });
+
+  if (charts.roomNet) charts.roomNet.destroy();
+  charts.roomNet = new Chart(roomCanvas2, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(d => d.room),
+      datasets: [{
+        label: 'Нетен приход EUR',
+        data: sorted.map(d => d.net),
+        backgroundColor: sorted.map(d => roomColors[d.room] || 'rgba(148,163,184,0.5)'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + fmtEur(ctx.parsed.y) + ' нетно' } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks: { callback: v => fmtEur(v), font:{size:11} } }
+      }
+    }
+  });
+}
+
 // ── CONFIG ───────────────────────────────────────────────────────────────
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw4yn6Q3WVczIvq1Mg1lBfLsE9qBFYJOdX2lAIrJ9JW-fVN1OKK8HFnORubjJmLlz8a/exec';
 
