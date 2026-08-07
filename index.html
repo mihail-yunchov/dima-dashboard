@@ -492,6 +492,31 @@
 
 <div class="main">
 
+  <!-- RUN-RATE PROJECTION -->
+  <div class="section-label" id="runRateLabel">Прогноза за текущата година</div>
+  <div class="charts-grid" style="grid-template-columns: 1fr 1fr 1fr 1fr; margin-bottom: 28px;" id="runRateGrid">
+    <div class="kpi-card gold">
+      <div class="kpi-label">YTD приход</div>
+      <div class="kpi-value" id="rrYtd">—</div>
+      <div class="kpi-sub" id="rrYtdSub">—</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Дневен темп</div>
+      <div class="kpi-value" id="rrDaily">—</div>
+      <div class="kpi-sub">EUR/ден средно YTD</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Прогноза за годината</div>
+      <div class="kpi-value" id="rrProjected">—</div>
+      <div class="kpi-sub" id="rrProjectedSub">—</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Спрямо предх. година</div>
+      <div class="kpi-value" id="rrYoy">—</div>
+      <div class="kpi-sub" id="rrYoySub">—</div>
+    </div>
+  </div>
+
   <!-- KPIs -->
   <div class="section-label">Обобщени показатели — всички години</div>
   <div class="kpi-grid" id="kpiGrid">
@@ -714,6 +739,46 @@
     </div>
   </div>
 
+  <div class="chart-card" style="margin-bottom: 28px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">ЕСТИ compliance по месец</div>
+        <div class="chart-sub">% резервации с попълнена регистрация, по месец на настаняване</div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="estiTrendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- CHILDREN VS NO CHILDREN -->
+  <div class="section-label">Семейства с деца</div>
+  <div class="charts-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 12px;">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Резервации: с деца vs без деца</div>
+          <div class="chart-sub" id="childrenChartSub">попълва се с нови резерв.</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="childrenCountChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Среден престой и приход</div>
+          <div class="chart-sub">Нощи и нетно EUR — с деца vs без</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="childrenStatsChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div style="margin-bottom: 28px;"></div>
+
   <div class="section-label">Sweet spot анализ</div>
   <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:12px; margin-bottom:28px;" id="sweetSpotGrid"></div>
 
@@ -887,6 +952,9 @@ function renderDashboard() {
   renderRoomCharts();
   renderSweetSpot();
   renderEsti();
+  renderEstiTrend();
+  renderChildrenAnalysis();
+  renderRunRate();
   renderFooter();
 
   const years = ANNUAL.map(a => a.year.replace('*',''));
@@ -930,6 +998,193 @@ function renderFooter() {
   const yearRange = years.length > 0 ? (years[0] + ' – ' + years[years.length-1]) : '';
   el.textContent = 'Данни: Booking.com · ' + TOTALS.res + ' резервации · ' + yearRange + ' · 1 EUR = 1.95583 BGN';
 }
+
+// ── RUN-RATE PROJECTION ────────────────────────────────────────────────
+function renderRunRate() {
+  const currentYear = new Date().getFullYear();
+  const yearData = ANNUAL.find(a => a.year.replace('*','') === String(currentYear));
+  if (!yearData || yearData.res === 0) {
+    const grid = document.getElementById('runRateGrid');
+    if (grid) grid.style.display = 'none';
+    return;
+  }
+
+  const now = new Date();
+  const startOfYear = new Date(currentYear, 0, 1);
+  const daysPassed = Math.max(1, Math.ceil((now - startOfYear) / 86400000));
+  const daysInYear = ((currentYear % 4 === 0 && currentYear % 100 !== 0) || currentYear % 400 === 0) ? 366 : 365;
+
+  const dailyRate = yearData.gross / daysPassed;
+  const projected = dailyRate * daysInYear;
+
+  document.getElementById('rrYtd').textContent = fmtEur(Math.round(yearData.gross));
+  document.getElementById('rrYtdSub').textContent = yearData.res + ' резерв. · първите ' + daysPassed + ' дни';
+
+  document.getElementById('rrDaily').textContent = fmtEur(dailyRate.toFixed(1));
+
+  document.getElementById('rrProjected').textContent = fmtEur(Math.round(projected));
+  document.getElementById('rrProjectedSub').textContent = 'при същия темп до 31.12.' + currentYear;
+
+  const prevYearData = ANNUAL.find(a => a.year.replace('*','') === String(currentYear - 1));
+  const yoyEl = document.getElementById('rrYoy');
+  const yoySubEl = document.getElementById('rrYoySub');
+  if (prevYearData && prevYearData.gross > 0) {
+    const yoyPct = ((projected - prevYearData.gross) / prevYearData.gross) * 100;
+    yoyEl.textContent = (yoyPct >= 0 ? '+' : '') + yoyPct.toFixed(0) + '%';
+    yoyEl.style.color = yoyPct >= 0 ? 'var(--green)' : 'var(--red)';
+    yoySubEl.textContent = 'vs ' + (currentYear - 1) + ' (' + fmtEur(Math.round(prevYearData.gross)) + ')';
+  } else {
+    yoyEl.textContent = '—';
+    yoySubEl.textContent = 'няма данни за ' + (currentYear - 1);
+  }
+
+  document.getElementById('runRateLabel').textContent = 'Прогноза за ' + currentYear + ' година';
+}
+
+// ── ESTI TREND BY MONTH ────────────────────────────────────────────────
+function renderEstiTrend() {
+  const canvas = document.getElementById('estiTrendChart');
+  if (!canvas || !RESERVATIONS || RESERVATIONS.length === 0) return;
+
+  const monthNames = ['Яну','Фев','Мар','Апр','Май','Юни','Юли','Авг','Сеп','Окт','Ное','Дек'];
+  const byMonth = {};
+  for (let m = 1; m <= 12; m++) byMonth[m] = { yes: 0, no: 0, total: 0 };
+
+  RESERVATIONS.forEach(r => {
+    if (r.esti === 'Да' || r.esti === 'Не') {
+      byMonth[r.month].total += 1;
+      if (r.esti === 'Да') byMonth[r.month].yes += 1;
+      else byMonth[r.month].no += 1;
+    }
+  });
+
+  const labels = [];
+  const pcts = [];
+  const counts = [];
+  for (let m = 1; m <= 12; m++) {
+    labels.push(monthNames[m-1]);
+    const d = byMonth[m];
+    pcts.push(d.total > 0 ? Math.round((d.yes / d.total) * 100) : null);
+    counts.push(d.total);
+  }
+
+  if (charts.estiTrend) charts.estiTrend.destroy();
+  charts.estiTrend = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '% Compliance',
+        data: pcts,
+        borderColor: '#c9a84c',
+        backgroundColor: 'rgba(201,168,76,0.1)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#c9a84c',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.3,
+        spanGaps: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.parsed.y === null ? ' Няма данни' : ' ' + ctx.parsed.y + '% (' + counts[ctx.dataIndex] + ' резерв. с попълнено поле)'
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.5)' }, ticks: {font:{size:11}} },
+        y: { min: 0, max: 100, grid: { color: 'rgba(30,48,88,0.5)' }, ticks: { callback: v => v + '%', font:{size:11} } }
+      }
+    }
+  });
+}
+
+// ── CHILDREN VS NO CHILDREN ───────────────────────────────────────────
+function renderChildrenAnalysis() {
+  const canvas1 = document.getElementById('childrenCountChart');
+  const canvas2 = document.getElementById('childrenStatsChart');
+  if (!canvas1 || !canvas2 || !RESERVATIONS || RESERVATIONS.length === 0) return;
+
+  const withChildren = RESERVATIONS.filter(r => r.children !== '' && r.children !== null && !isNaN(parseFloat(r.children)));
+  if (withChildren.length === 0) {
+    const sub = document.getElementById('childrenChartSub');
+    if (sub) sub.textContent = 'Все още няма попълнени данни за деца';
+    return;
+  }
+
+  const withKids = withChildren.filter(r => parseFloat(r.children) > 0);
+  const withoutKids = withChildren.filter(r => parseFloat(r.children) === 0);
+
+  const sub = document.getElementById('childrenChartSub');
+  if (sub) sub.textContent = withChildren.length + ' резерв. с попълнено поле';
+
+  if (charts.childrenCount) charts.childrenCount.destroy();
+  charts.childrenCount = new Chart(canvas1, {
+    type: 'doughnut',
+    data: {
+      labels: ['Без деца', 'С деца'],
+      datasets: [{
+        data: [withoutKids.length, withKids.length],
+        backgroundColor: ['rgba(96,165,250,0.7)', 'rgba(201,168,76,0.7)'],
+        borderColor: '#0e1628',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font:{size:10} } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed + ' резерв.' } }
+      },
+      cutout: '60%'
+    }
+  });
+
+  const avgNights = arr => arr.length > 0 ? arr.reduce((s,r) => s + r.nights, 0) / arr.length : 0;
+  const avgNet = arr => arr.length > 0 ? arr.reduce((s,r) => s + r.netEUR, 0) / arr.length : 0;
+
+  if (charts.childrenStats) charts.childrenStats.destroy();
+  charts.childrenStats = new Chart(canvas2, {
+    type: 'bar',
+    data: {
+      labels: ['Ср. нощи', 'Ср. нетно EUR'],
+      datasets: [
+        {
+          label: 'Без деца',
+          data: [round1(avgNights(withoutKids)), round1(avgNet(withoutKids))],
+          backgroundColor: 'rgba(96,165,250,0.7)',
+          borderRadius: 4,
+        },
+        {
+          label: 'С деца',
+          data: [round1(avgNights(withKids)), round1(avgNet(withKids))],
+          backgroundColor: 'rgba(201,168,76,0.7)',
+          borderRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 10, padding: 12, font:{size:11} } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + ctx.parsed.y } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} },
+        y: { grid: { color: 'rgba(30,48,88,0.4)' }, ticks:{font:{size:11}} }
+      }
+    }
+  });
+}
+
+function round1(n) { return Math.round(n * 10) / 10; }
+
 
 // ── KPIs ─────────────────────────────────────────────────────────────────
 function renderKPIs() {
