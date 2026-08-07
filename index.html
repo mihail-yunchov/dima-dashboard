@@ -486,8 +486,8 @@
 <!-- HERO -->
 <div class="hero-strip">
   <div class="hero-eyebrow">Анализ на представянето</div>
-  <div class="hero-title">8 години данни · Един поглед</div>
-  <div class="hero-sub">EUR/нощ: <b>29€ (2022)</b> → <b>55€ (2025)</b> → <b>67€ (2026 YTD)</b> · 182 резервации · Комисиона: 16.1% → 18.7%</div>
+  <div class="hero-title" id="heroTitle">— години данни · Един поглед</div>
+  <div class="hero-sub" id="heroSub">Зареждане...</div>
 </div>
 
 <div class="main">
@@ -527,13 +527,8 @@
     </div>
     <div class="kpi-card red">
       <div class="kpi-label">Най-силен месец</div>
-      <div class="kpi-value">Декември</div>
-      <div class="kpi-sub">65.8€/нощ средно</div>
-    </div>
-    <div class="kpi-card blue">
-      <div class="kpi-label">Повторни гости</div>
-      <div class="kpi-value">5+</div>
-      <div class="kpi-sub">потенциал за директни</div>
+      <div class="kpi-value" id="kpiTopMonth">—</div>
+      <div class="kpi-sub" id="kpiTopMonthSub">—</div>
     </div>
   </div>
 
@@ -882,6 +877,7 @@ function showError(msg) {
 
 // ── MAIN RENDER ──────────────────────────────────────────────────────────
 function renderDashboard() {
+  renderHero();
   renderKPIs();
   renderAnnualChart();
   renderAvgNightChart();
@@ -902,6 +898,46 @@ function renderDashboard() {
 // ── KPIs ─────────────────────────────────────────────────────────────────
 function renderKPIs() {
   filterYear('all', document.querySelector('.year-btn'));
+  renderTopMonth();
+}
+
+function renderHero() {
+  const withData = ANNUAL.filter(d => d.res > 0);
+  if (withData.length === 0) return;
+
+  const firstYear = withData[0];
+  const lastYear = withData[withData.length - 1];
+  const midIdx = Math.floor(withData.length / 2);
+  const midYear = withData[midIdx];
+
+  const spanYears = parseInt(lastYear.year) - parseInt(firstYear.year) + 1;
+  document.getElementById('heroTitle').textContent = spanYears + ' години данни · Един поглед';
+
+  const totalRes = withData.reduce((s, d) => s + d.res, 0);
+  const minComm = Math.min(...withData.filter(d => d.pct > 0).map(d => d.pct)) * 100;
+  const maxComm = Math.max(...withData.filter(d => d.pct > 0).map(d => d.pct)) * 100;
+
+  let trendParts = [fmtEur(firstYear.eur_n) + ' (' + firstYear.year + ')'];
+  if (midYear.year !== firstYear.year && midYear.year !== lastYear.year) {
+    trendParts.push(fmtEur(midYear.eur_n) + ' (' + midYear.year + ')');
+  }
+  trendParts.push(fmtEur(lastYear.eur_n) + ' (' + lastYear.year.replace('*', ' YTD') + ')');
+
+  document.getElementById('heroSub').innerHTML =
+    'EUR/нощ: <b>' + trendParts.join('</b> → <b>') + '</b> · ' +
+    totalRes + ' резервации · Комисиона: ' + minComm.toFixed(1) + '% → ' + maxComm.toFixed(1) + '%';
+}
+
+function renderTopMonth() {
+  const withNights = MONTHLY.filter(d => d.nights > 0);
+  if (withNights.length === 0) return;
+  const top = withNights.reduce((max, d) => d.eur_n > max.eur_n ? d : max, withNights[0]);
+  const monthFull = {
+    'Яну':'Януари','Фев':'Февруари','Мар':'Март','Апр':'Април','Май':'Май','Юни':'Юни',
+    'Юли':'Юли','Авг':'Август','Сеп':'Септември','Окт':'Октомври','Ное':'Ноември','Дек':'Декември'
+  };
+  document.getElementById('kpiTopMonth').textContent = monthFull[top.m] || top.m;
+  document.getElementById('kpiTopMonthSub').textContent = fmtEur(top.eur_n) + '/нощ средно';
 }
 
 function setupYearFilter() {
